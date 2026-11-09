@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>会議コストリアルタイム給与時計</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-4">
+<h1 class="text-2xl font-bold mb-1 text-center">💰 会議コスト給与時計</h1>
+<p class="text-gray-400 text-sm mb-6 text-center">この会議に今いくらかかっているか</p>
+
+<div class="w-full max-w-sm mb-6">
+  <div class="flex gap-4 mb-3">
+    <label class="flex-1 flex flex-col text-xs text-gray-300">
+      参加人数
+      <input id="people" type="number" value="5" min="1" max="100"
+        class="mt-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-lg font-bold">
+    </label>
+    <label class="flex-1 flex flex-col text-xs text-gray-300">
+      平均時給（円）
+      <input id="rate" type="number" value="3000" min="100" step="100"
+        class="mt-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-lg font-bold">
+    </label>
+  </div>
+</div>
+
+<div class="text-center mb-8">
+  <div class="text-xs text-gray-500 mb-1">累積コスト</div>
+  <div id="cost" class="text-6xl font-bold font-mono text-yellow-400">¥0</div>
+  <div class="text-xs text-gray-500 mt-1">経過時間: <span id="timeDisplay" class="font-mono">00:00</span></div>
+  <div class="text-xs text-gray-500 mt-1">毎秒 <span id="perSec" class="text-orange-400 font-bold">¥0</span> 消費中</div>
+</div>
+
+<div class="flex gap-4 mb-8">
+  <button id="startBtn" class="bg-green-600 hover:bg-green-500 px-8 py-4 rounded-xl font-bold text-lg transition shadow-lg">▶ 開始</button>
+  <button id="stopBtn" class="bg-red-600 hover:bg-red-500 px-8 py-4 rounded-xl font-bold text-lg transition shadow-lg" disabled>⏹ 停止</button>
+  <button id="resetBtn" class="bg-gray-700 hover:bg-gray-600 px-8 py-4 rounded-xl font-bold text-lg transition">↺</button>
+</div>
+
+<div id="log" class="w-full max-w-sm space-y-2">
+  <div class="text-xs text-gray-500 mb-1">会議ログ</div>
+</div>
+
+<div class="mt-6 text-xs text-gray-600 text-center max-w-xs">
+  💡 1人の年収600万円 → 時給約3,200円（月160h計算）<br>
+  毎月社内会議3hなら → 10人で約10万円/月
+</div>
+
+<script>
+let running=false,startTime=0,elapsed=0,timerID;
+
+function getPerSecond(){
+  const people=parseInt(document.getElementById('people').value)||1;
+  const rate=parseFloat(document.getElementById('rate').value)||0;
+  return people*rate/3600;
+}
+
+function formatTime(sec){
+  const h=(sec/3600)|0;
+  const m=((sec%3600)/60)|0;
+  const s=sec%60;
+  if(h>0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function updateDisplay(){
+  if(!running) return;
+  elapsed=Math.floor((Date.now()-startTime)/1000);
+  const cost=elapsed*getPerSecond();
+  document.getElementById('cost').textContent='¥'+Math.round(cost).toLocaleString();
+  document.getElementById('timeDisplay').textContent=formatTime(elapsed);
+  const perSec=getPerSecond();
+  document.getElementById('perSec').textContent='¥'+perSec.toFixed(1);
+}
+
+document.getElementById('startBtn').addEventListener('click',()=>{
+  if(running) return;
+  running=true;
+  startTime=Date.now()-elapsed*1000;
+  timerID=setInterval(updateDisplay,500);
+  document.getElementById('startBtn').disabled=true;
+  document.getElementById('stopBtn').disabled=false;
+  const perSec=getPerSecond();
+  document.getElementById('perSec').textContent='¥'+perSec.toFixed(1);
+});
+
+document.getElementById('stopBtn').addEventListener('click',()=>{
+  if(!running) return;
+  running=false;
+  clearInterval(timerID);
+  const cost=elapsed*getPerSecond();
+  const people=document.getElementById('people').value;
+  const rate=document.getElementById('rate').value;
+  const entry=document.createElement('div');
+  entry.className='bg-gray-800 rounded p-2 text-sm flex justify-between';
+  entry.innerHTML=`<span>${new Date().toLocaleTimeString()} (${formatTime(elapsed)})</span><span class="text-yellow-400 font-bold">¥${Math.round(cost).toLocaleString()}</span>`;
+  const log=document.getElementById('log');
+  log.appendChild(entry);
+  document.getElementById('startBtn').disabled=false;
+  document.getElementById('stopBtn').disabled=true;
+});
+
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  running=false; clearInterval(timerID); elapsed=0;
+  document.getElementById('cost').textContent='¥0';
+  document.getElementById('timeDisplay').textContent='00:00';
+  document.getElementById('startBtn').disabled=false;
+  document.getElementById('stopBtn').disabled=true;
+});
+
+['people','rate'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>{
+    if(!running) document.getElementById('perSec').textContent='¥'+getPerSecond().toFixed(1);
+  });
+});
+document.getElementById('perSec').textContent='¥'+getPerSecond().toFixed(1);
+</script>
+</body>
+</html>
